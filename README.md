@@ -4,7 +4,6 @@
 ## Dependencies
 - torch==1.13.0
 - torchvision==0.14.1
-- anndata==0.10.3
 - numpy==1.19.2
 - scanpy==1.9.6
 - scipy==1.9.3
