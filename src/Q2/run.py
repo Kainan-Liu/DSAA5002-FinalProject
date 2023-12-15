@@ -72,4 +72,5 @@ def main(num_classes, epochs, batch_size, lr):
 
 
 if __name__ == "__main__":
-    main(num_classes=5, epochs=50, batch_size=16, lr=1e-4)
+    seed_everything(random_state=42)
+    main(num_classes=5, epochs=5, batch_size=16, lr=1e-4)

@@ -39,7 +39,7 @@ class Q2Dataset(Dataset):
         if self.transform is None:
             if self.train:
                 self.transform = transforms.Compose([
-                    transforms.RandomRotation(45),
+                    transforms.RandomRotation(15),
                     transforms.Resize((255, 255), interpolation=Image.BICUBIC), 
                     transforms.ToTensor(),
                     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]) # mean and variance in ImageNet
