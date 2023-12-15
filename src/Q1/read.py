@@ -35,7 +35,9 @@ class Q1Data(Dataset):
                 for file in files:
                     file_list.append(pd.read_csv(files_dir + file))
                 df = pd.concat(file_list, axis=0)
-                print(f"Total Number of training Sample: {len(df)}")
+                if self.flag:
+                    print("====================================================")
+                    print(f"Total Number of training Sample: {len(df)}")
 
                 if df.isna().any().any():
                     df.dropna(axis=0) # Drop the rows contain Nan
@@ -58,6 +60,7 @@ class Q1Data(Dataset):
         if self.test:
             if os.path.exists(test_file):
                 self.test_data = pd.read_csv(test_file)
+                print(f"Total Number of testing Sample: {len(self.test_data)}")
             else:
                 raise FileNotFoundError
 
