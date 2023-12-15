@@ -4,7 +4,7 @@ import os
 import torch
 from torch.utils.data import Dataset
 from sklearn.model_selection import train_test_split
-from typing import Optional
+from typing import Optional, Literal
 
 
 class Q1Data(Dataset):
@@ -14,16 +14,19 @@ class Q1Data(Dataset):
                  random_state: Optional[int] = 42,
                  train: Optional[bool] = True,
                  flag: Optional[bool] = True,
+                 pretrain: Literal[True, False] = False,
                  test: Optional[bool] = False,
                  test_file: Optional[str] = None,
                  align: Optional[bool] = None,
                  max_pairs: Optional[int] = None,
+                 max_sample: Optional[int] = None,
                  an_ratio: Optional[float] = 0.6) -> None:
         self.files_dir = files_dir
         self.random_state = random_state
         self.train = train
         self.flag = flag
         self.test = test
+        self.pretrain = pretrain
         self.align = align
         self.max_pairs = max_pairs
         self.an_ratio = an_ratio
@@ -35,9 +38,6 @@ class Q1Data(Dataset):
                 for file in files:
                     file_list.append(pd.read_csv(files_dir + file))
                 df = pd.concat(file_list, axis=0)
-                if self.flag:
-                    print("====================================================")
-                    print(f"Total Number of training Sample: {len(df)}")
 
                 if df.isna().any().any():
                     df.dropna(axis=0) # Drop the rows contain Nan
@@ -45,8 +45,20 @@ class Q1Data(Dataset):
                 data = df.iloc[:, :-1]
                 label = df.iloc[:, -1]
 
+                if self.pretrain:
+                    if max_sample is None:
+                        max_sample = len(data)
+                    normal_index = np.random.choice(df[df.iloc[:, -1] == 0].index.to_numpy(), \
+                                                    size=int((1- an_ratio) * max_sample))
+                    anomaly_index = np.random.choice(df[df.iloc[:, -1] == 1].index.to_numpy(), \
+                                                    size=int(an_ratio * max_sample))
+                    sample_index = list(np.concatenate((normal_index, anomaly_index)))
+                    data = data.iloc[sample_index, :]
+                    label = label.iloc[sample_index]
+
                 self.train_data, self.valid_data, self.train_label, self.valid_label \
-                    = train_test_split(data, label, test_size=0.3, random_state=42)
+                    = train_test_split(data, label, test_size=0.1, random_state=42)
+
                 
                 if self.align:
                     if self.max_pairs is not None:
@@ -112,10 +124,19 @@ class Q1Data(Dataset):
         if not self.align:
             if self.train:
                 data = torch.tensor(self.train_data.iloc[index, :].to_numpy(), dtype=torch.float32)
-                label = torch.tensor(self.train_label.iloc[index, :].to_numpy())
+                label = torch.tensor(self.train_label.iloc[index], dtype=torch.float32)
             else:
-                data = torch.tensor(self.valid_data.iloc[index, :].to_numpy(), dtype=torch.float32)
-                label = torch.tensor(self.valid_label.iloc[index, :].to_numpy())
+                if self.test:
+                    if isinstance(self.test_data, pd.DataFrame):
+                        data = self.test_data.iloc[index:, 1:-1] # move id column
+                        label = self.test_data.iloc[index:, -1]
+                        data = torch.tensor(data.to_numpy(), dtype=torch.float32)
+                        label = torch.tensor(label)
+                    else:
+                        raise RuntimeError("Please set test data first")
+                else:
+                    data = torch.tensor(self.valid_data.iloc[index, :].to_numpy(), dtype=torch.float32)
+                    label = torch.tensor(self.valid_label.iloc[index], dtype=torch.float32)
             return data, label 
         else:
             if self.train and self.flag:

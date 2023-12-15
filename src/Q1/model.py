@@ -1,6 +1,12 @@
 import torch
 import torch.nn as nn
+import torch.optim as optim
+import itertools
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 from typing import Union, Optional
+from read import Q1Data
+from sklearn.metrics import recall_score, accuracy_score
 
 class LinearBlock(nn.Module):
     def __init__(self, in_features, out_features, act: Optional[bool] = True, last: bool = False, *args, **kwargs) -> None:
@@ -34,21 +40,63 @@ class ANNet(nn.Module):
             LinearBlock(in_features=hidden_features[2], out_features=out_features, act=False, last=True)
         )
 
-    def forward(self, x):
-        return self.model(x)
-    
-class NNNet(nn.Module):
-    def __init__(self, in_features, out_features, *args, **kwargs) -> None:
-        super(NNNet, self).__init__(*args, **kwargs)
-        self.in_features = in_features
-        self.out_features = out_features
-        
-        hidden_features = [16, 32]
-        self.model = nn.Sequential(
-            LinearBlock(in_features=in_features, out_features=hidden_features[0]),
-            LinearBlock(in_features=hidden_features[0], out_features=hidden_features[1]),
-            LinearBlock(in_features=hidden_features[1], out_features=out_features, act=False, last=True)
+        self.classifier = nn.Sequential(
+            nn.Linear(in_features=self.out_features, out_features=1),
+            nn.Sigmoid()
         )
 
     def forward(self, x):
         return self.model(x)
+    
+    def pretrain(self, lr, batch_size, epochs, max_sample):
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        dataset = Q1Data(files_dir="c:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q1/train/", \
+                        align=False, flag=True, max_sample=max_sample, pretrain=True, test=False)
+        dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=2)
+        criterion = nn.BCELoss()
+        model_parameters = self.model.parameters()
+        classifier_parameters = self.classifier.parameters()
+        all_parameters = itertools.chain(model_parameters, classifier_parameters)
+        optimizer = optim.Adam(all_parameters, lr=lr, weight_decay=0.9)
+        self.model.to(device=device)
+        self.classifier.to(device=device)
+
+        for epoch in range(epochs):
+            t = tqdm(dataloader, leave=False, total=len(dataloader))
+            t.set_description(f"Training Epoch: {epoch + 1}/{epochs}")
+            for data, label in t:
+                data = data.to(device=device)
+                label = label.to(device=device)
+
+                # forward
+                output = self.model(data)
+                pred = self.classifier(output).flatten()
+
+                # backward
+                loss = criterion(pred, label)
+                # update
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                t.set_postfix(Loss=loss.item())
+
+        print("Test Pretrain model")
+        self.model.eval()
+        self.classifier.eval()
+        test_dataset = Q1Data(test_file="c:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q1/test/test_set.csv", \
+                        align=True, test=True)
+        test_dataloader = DataLoader(test_dataset, batch_size=256, shuffle=False, num_workers=2)
+        with torch.no_grad():
+            loop = tqdm(test_dataloader, leave=False, total=len(test_dataloader))
+            pred_labels = []
+            test_labels = []
+            for test_data, test_label in loop:
+                test_data = test_data.to(device=device)
+                output = self.model(test_data)
+                pred_label = torch.where(self.classifier(output).flatten() > 0.5, 1, 0).tolist()
+                pred_labels += pred_label
+                test_labels += test_label.tolist()
+        
+        print("======================Score=========================")
+        print(f"Recall: {recall_score(test_labels, pred_labels, pos_label=1)}")
+        print(f"Accuracy: {accuracy_score(test_labels, pred_labels)}")

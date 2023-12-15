@@ -15,8 +15,8 @@ def xgboost_wrapper(data_dir, random_state: Optional[int] = 42, dropna: Literal[
         raise FileNotFoundError
     
     params = {
-        "learning_rate": [0.1, 0.05, 0.01, 0.2],
-        "n_estimators": [100, 200, 300, 400, 500],
+        "learning_rate": [0.1, 0.05, 0.15],
+        "n_estimators": [100, 200, 300, 400],
         "max_depth": [3, 5, 7]
     }
     
@@ -29,18 +29,17 @@ def xgboost_wrapper(data_dir, random_state: Optional[int] = 42, dropna: Literal[
     X = data.iloc[:, :-1]
     X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.2, random_state=random_state)
 
-    # Create an XGBoost classifier
+    # Grid Search
     grid_search = GridSearchCV(estimator=xgb.XGBClassifier(), param_grid=params, cv=5)
     grid_search.fit(X_train, y_train)
-
     best_params = grid_search.best_params_
-
     print(f"Best Parameters: {best_params}")
+    # ------------------------------------------------------------------------------------------------------
+    
     model = xgb.XGBClassifier(**best_params)
     model.fit(X_train, y_train)
 
-    # Make predictions on the validation data
-    y_pred = model.predict(X_valid)
+    y_pred = model.predict(X_valid) # Make predictions on the validation data
     accuracy = accuracy_score(y_valid, y_pred)
     print(f"Validation Accuracy: {accuracy:.4f}")
 
@@ -61,7 +60,8 @@ def xgboost_wrapper(data_dir, random_state: Optional[int] = 42, dropna: Literal[
     plt.title('Receiver Operating Characteristic (ROC) Curve')
     plt.legend(loc='lower right')
     plt.show()
-    print("=======================================================")
+
+    #-------------------------------------------------------------------------------------------------------
 
     test_file = os.path.join(data_dir, "Q5_test.csv")
     test_data = pd.read_csv(test_file)
@@ -80,4 +80,4 @@ def xgboost_wrapper(data_dir, random_state: Optional[int] = 42, dropna: Literal[
 
 if __name__ == "__main__":
     xgboost_wrapper(data_dir="C:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q5/", \
-                    dropna=True)
+                    dropna=False)
