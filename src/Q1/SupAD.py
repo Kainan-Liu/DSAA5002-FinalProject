@@ -1,0 +1,93 @@
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from tqdm import tqdm
+from torch.utils.data import DataLoader
+from read import Q1Data
+from model import ANNet, NNNet
+from sklearn.metrics import recall_score, accuracy_score
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+def main(batch_size = 64, lr = 1e-4, epochs=1, max_pairs=8000, an_ratio = 0.5):
+    # initialization
+    dataset = Q1Data(files_dir="c:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q1/train/", \
+                     align=True, max_pairs=max_pairs, test=False, an_ratio=an_ratio)
+    input_features = dataset.train_data.shape[1]
+    left_net = ANNet(in_features=input_features, out_features=8).to(device=device)
+    right_net = NNNet(in_features=input_features, out_features=8).to(device=device)
+
+    dataloader = DataLoader(dataset, shuffle=True, batch_size=batch_size)
+
+    criterion = nn.L1Loss()
+
+    left_optimizer = optim.Adam(left_net.parameters(), lr=lr, weight_decay=0.9)
+    right_optimizer = optim.Adam(right_net.parameters(), lr=lr, weight_decay=0.9)
+
+
+    print("Begin Anomaly Detection")
+    for epoch in range(epochs):
+        t = tqdm(dataloader, leave=False, total=len(dataloader))
+        for left_data, right_data, label in t:
+            t.set_description(f"Anomaly-Detection Training Epoch {epoch + 1}/{epochs}")
+
+            left_data = left_data.to(device=device)
+            right_data = right_data.to(device=device)
+            label = label.to(device=device)
+
+            # forward
+            left_embedding = left_net(left_data)
+            right_embedding = right_net(right_data) # batch_size * output_features
+            left_embedding_norm = torch.norm(left_embedding, dim=1)
+            right_embedding_norm = torch.norm(right_embedding, dim=1)
+            pred = torch.diag(torch.mm(left_embedding, right_embedding.t())) / (left_embedding_norm * right_embedding_norm)
+
+            # backward
+            loss = criterion(pred, label)
+
+            # update
+            left_optimizer.zero_grad()
+            right_optimizer.zero_grad()
+            loss.backward()
+            left_optimizer.step()
+            right_optimizer.step()
+    print("End Training")
+    return left_net, right_net
+
+def test(left_net, right_net, threshold: float = -0.2):
+
+    print("====================================================")
+    print("Begin detect outliers on Test")
+    test_dataset = Q1Data(test_file="c:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q1/test/test_set.csv", \
+                          align=True, max_pairs=3000, test=True, flag=False,
+                          files_dir="c:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q1/train/")
+    test_datalaoder = DataLoader(test_dataset, batch_size=256, shuffle=False)
+    left_net.eval()
+    right_net.eval()
+    with torch.no_grad():
+        loop = tqdm(test_datalaoder, leave=False, total=len(test_datalaoder))
+        pred_labels = []
+        test_labels = []
+        for test_data, normal_data, test_label in loop:
+            test_data = test_data.to(device=device)
+            normal_data = normal_data.to(device=device)
+            label = label.to(device=device)
+
+            test_left_embedding = left_net(test_data)
+            test_right_embedding = right_net(normal_data)
+            left_embedding_norm = torch.norm(test_left_embedding, dim=1)
+            right_embedding_norm = torch.norm(test_right_embedding, dim=1)
+            pred = torch.diag(torch.mm(test_left_embedding, test_right_embedding.t())) \
+                / (left_embedding_norm * right_embedding_norm)
+            pred_label = torch.where(pred > threshold, 0, 1).tolist()
+            pred_labels += pred_label
+            test_labels += test_label
+    
+    print("======================Score=========================")
+    print(f"Recall: {recall_score(test_labels, pred_labels, pos_label=1)}")
+    print(f"Accuracy: {accuracy_score(test_labels, pred_labels)}")
+
+
+if __name__ == "__main__":
+    left_net, right_net = main(batch_size = 64, lr = 1e-4, epochs=2, max_pairs=5000, an_ratio=0.5)
+    test(left_net=left_net, right_net=right_net, threshold=-0.2)
