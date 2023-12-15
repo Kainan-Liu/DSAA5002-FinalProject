@@ -10,7 +10,7 @@ from typing import Optional, Literal
 class Q1Data(Dataset):
     def __init__(self,
                  *,
-                 files_dir: Optional[str] = None,
+                 files_dir: Optional[str] = "",
                  random_state: Optional[int] = 42,
                  train: Optional[bool] = True,
                  flag: Optional[bool] = True,

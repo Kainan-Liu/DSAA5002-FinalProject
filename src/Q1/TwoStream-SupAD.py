@@ -37,7 +37,7 @@ def main(out_features = 16,
     if pretrain:
         print("Begin Pretrain")
         model = ANNet(in_features=input_features, out_features=out_features).to(device=device)
-        model.pretrain(lr=1e-5, batch_size=256, epochs=10, max_sample=max_sample)
+        model.pretrain(lr=1e-5, batch_size=256, epochs=1, max_sample=max_sample)
         left_net = model
         right_net = copy.deepcopy(model)
     else:

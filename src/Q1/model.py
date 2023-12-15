@@ -84,7 +84,8 @@ class ANNet(nn.Module):
         self.model.eval()
         self.classifier.eval()
         test_dataset = Q1Data(test_file="c:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q1/test/test_set.csv", \
-                        align=True, test=True)
+                        align=True, test=True, train=False, \
+                        files_dir="c:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q1/train/")
         test_dataloader = DataLoader(test_dataset, batch_size=256, shuffle=False, num_workers=2)
         with torch.no_grad():
             loop = tqdm(test_dataloader, leave=False, total=len(test_dataloader))
