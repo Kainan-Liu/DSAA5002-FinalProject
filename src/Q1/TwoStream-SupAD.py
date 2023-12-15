@@ -27,6 +27,7 @@ def main(out_features = 16,
          max_pairs=1000,
          an_ratio = 0.5,
          temperature = 0.8,
+         pretrain_epochs=10,
          pretrain = True):
 
     # initialization
@@ -37,7 +38,7 @@ def main(out_features = 16,
     if pretrain:
         print("Begin Pretrain")
         model = ANNet(in_features=input_features, out_features=out_features).to(device=device)
-        model.pretrain(lr=1e-5, batch_size=256, epochs=1, max_sample=max_sample)
+        model.pretrain(lr=1e-5, batch_size=256, epochs=pretrain_epochs, max_sample=max_sample)
         left_net = model
         right_net = copy.deepcopy(model)
     else:
@@ -124,6 +125,7 @@ if __name__ == "__main__":
     left_net, right_net = main(out_features = 8,
                                batch_size = 128,
                                lr = 2e-4,
+                               pretrain_epochs=10,
                                epochs=2,
                                max_pairs=6000,
                                an_ratio=0.4,

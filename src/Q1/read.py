@@ -131,7 +131,8 @@ class Q1Data(Dataset):
                         data = self.test_data.iloc[index:, 1:-1] # move id column
                         label = self.test_data.iloc[index:, -1]
                         data = torch.tensor(data.to_numpy(), dtype=torch.float32)
-                        label = torch.tensor(label)
+                        label = torch.tensor(label.to_numpy())
+                        return data, label
                     else:
                         raise RuntimeError("Please set test data first")
                 else:
@@ -162,7 +163,6 @@ class Q1Data(Dataset):
                         test_data = torch.tensor(test_data.to_numpy(), dtype=torch.float32)
                         test_label = torch.tensor(test_label.to_numpy())
                         return test_data[index], normal_data[index], test_label[index]
-
                     else:
                         raise RuntimeError("Please set test data first")
                 else:

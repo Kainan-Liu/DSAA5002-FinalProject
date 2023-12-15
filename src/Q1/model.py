@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import itertools
+import pandas as pd
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from typing import Union, Optional
@@ -52,7 +53,7 @@ class ANNet(nn.Module):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         dataset = Q1Data(files_dir="c:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q1/train/", \
                         align=False, flag=True, max_sample=max_sample, pretrain=True, test=False)
-        dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=2)
+        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=2)
         criterion = nn.BCELoss()
         model_parameters = self.model.parameters()
         classifier_parameters = self.classifier.parameters()
@@ -83,20 +84,17 @@ class ANNet(nn.Module):
         print("Test Pretrain model")
         self.model.eval()
         self.classifier.eval()
-        test_dataset = Q1Data(test_file="c:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q1/test/test_set.csv", \
-                        align=True, test=True, train=False, \
-                        files_dir="c:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q1/train/")
-        test_dataloader = DataLoader(test_dataset, batch_size=256, shuffle=False, num_workers=2)
+        test_data = pd.read_csv("c:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q1/test/test_set.csv")
+        X = test_data.iloc[:, 1:-1]
+        y = test_data.iloc[:, -1]
+        pred_labels = []
+        test_labels = []
         with torch.no_grad():
-            loop = tqdm(test_dataloader, leave=False, total=len(test_dataloader))
-            pred_labels = []
-            test_labels = []
-            for test_data, test_label in loop:
-                test_data = test_data.to(device=device)
-                output = self.model(test_data)
-                pred_label = torch.where(self.classifier(output).flatten() > 0.5, 1, 0).tolist()
-                pred_labels += pred_label
-                test_labels += test_label.tolist()
+            X = torch.tensor(X.to_numpy(), dtype=torch.float32, device=device)
+            output = self.model(X)
+            pred_label = torch.where(self.classifier(output).flatten() > 0.3, 1, 0).tolist()
+            pred_labels += pred_label
+            test_labels += y.tolist()
         
         print("======================Score=========================")
         print(f"Recall: {recall_score(test_labels, pred_labels, pos_label=1)}")
