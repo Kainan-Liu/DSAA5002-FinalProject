@@ -40,14 +40,13 @@ class Q2Dataset(Dataset):
             if self.train:
                 self.transform = transforms.Compose([
                     transforms.RandomRotation(45),
-                    transforms.RandomVerticalFlip(p=0.5),
-                    transforms.Resize((224, 224), interpolation=Image.BICUBIC), 
+                    transforms.Resize((255, 255), interpolation=Image.BICUBIC), 
                     transforms.ToTensor(),
                     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]) # mean and variance in ImageNet
                 ])
             else:
                 self.transform = transforms.Compose([
-                    transforms.Resize((224, 224), interpolation=Image.BICUBIC), 
+                    transforms.Resize((255, 255), interpolation=Image.BICUBIC), 
                     transforms.ToTensor(),
                     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]) # mean and variance in ImageNet
                 ])
