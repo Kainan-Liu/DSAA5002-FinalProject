@@ -33,7 +33,7 @@ class MyResNet(nn.Module):
         self.num_classes = num_classes
         self.hidden_features = hidden_features
 
-        self.backbone = pretrain_model.resnet34()
+        self.backbone = pretrain_model.resnet34(weights=pretrain_model.ResNet34_Weights.DEFAULT)
         for parameter in self.backbone.parameters():
             parameter.requires_grad = False
 
