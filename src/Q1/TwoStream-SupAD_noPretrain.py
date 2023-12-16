@@ -28,7 +28,7 @@ def main(out_features = 16, batch_size = 64, lr = 1e-4, epochs=1, max_pairs=8000
 
     dataloader = DataLoader(dataset, shuffle=True, batch_size=batch_size)
 
-    criterion = nn.L1Loss()
+    criterion = nn.BCELoss()
 
     left_optimizer = optim.Adam(left_net.parameters(), lr=lr, weight_decay=0.9)
     right_optimizer = optim.Adam(right_net.parameters(), lr=lr, weight_decay=0.9)
