@@ -21,7 +21,7 @@ def seed_everything(random_state):
 
 def main(num_classes, epochs, batch_size, lr):
     # initialization
-    dataset = Q2Dataset(data_dir="c:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q2/train_data/")
+    dataset = Q2Dataset(data_dir="../../Data/Q2/train_data/")
     dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=2)
     model = MyResNet(num_classes=num_classes).to(device=device)
 
@@ -51,7 +51,7 @@ def main(num_classes, epochs, batch_size, lr):
     print("End Training")
     print("======================================================")
     print("Begin Testing")
-    test_dataset = Q2Dataset(data_dir="c:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q2/train_data/", \
+    test_dataset = Q2Dataset(data_dir="../../Data/Q2/train_data/", \
                              train=False)
     test_datalaoder = DataLoader(test_dataset, batch_size=256, shuffle=False)
     model.eval()
@@ -73,4 +73,4 @@ def main(num_classes, epochs, batch_size, lr):
 
 if __name__ == "__main__":
     seed_everything(random_state=42)
-    main(num_classes=5, epochs=5, batch_size=16, lr=1e-4)
+    main(num_classes=5, epochs=50, batch_size=16, lr=3e-5)
