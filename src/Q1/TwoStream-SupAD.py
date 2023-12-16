@@ -8,7 +8,7 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 from read import Q1Data
 from model import ANNet
-from sklearn.metrics import recall_score, accuracy_score
+from sklearn.metrics import recall_score, precision_score
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -116,7 +116,7 @@ def test(left_net, right_net, threshold: float = -0.2):
     
     print("======================Score=========================")
     print(f"Recall: {recall_score(test_labels, pred_labels, pos_label=1)}")
-    print(f"Accuracy: {accuracy_score(test_labels, pred_labels)}")
+    print(f"Precision: {precision_score(test_labels, pred_labels)}")
 
 
 if __name__ == "__main__":
