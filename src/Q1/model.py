@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from typing import Union, Optional
 from read import Q1Data
-from sklearn.metrics import recall_score, precision_score
+from sklearn.metrics import recall_score, precision_score, accuracy_score
 
 class LinearBlock(nn.Module):
     def __init__(self, in_features, out_features, act: Optional[bool] = True, last: bool = False, *args, **kwargs) -> None:
@@ -92,10 +92,11 @@ class ANNet(nn.Module):
         with torch.no_grad():
             X = torch.tensor(X.to_numpy(), dtype=torch.float32, device=device)
             output = self.model(X)
-            pred_label = torch.where(self.classifier(output).flatten() > 0.3, 1, 0).tolist()
+            pred_label = torch.where(self.classifier(output).flatten() > 0.5, 1, 0).tolist()
             pred_labels += pred_label
             test_labels += y.tolist()
         
         print("======================Score=========================")
         print(f"Recall: {recall_score(test_labels, pred_labels, pos_label=1)}")
         print(f"Precision: {precision_score(test_labels, pred_labels)}")
+        print(f"Accuracy: {accuracy_score(test_labels, pred_labels)}")
