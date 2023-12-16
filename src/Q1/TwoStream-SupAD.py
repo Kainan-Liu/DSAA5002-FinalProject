@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 import copy
 import random
@@ -8,7 +9,7 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 from read import Q1Data
 from model import ANNet
-from sklearn.metrics import recall_score, precision_score
+from sklearn.metrics import recall_score, precision_score, accuracy_score
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -47,7 +48,7 @@ def main(out_features = 16,
 
     dataloader = DataLoader(dataset, shuffle=True, batch_size=batch_size)
 
-    criterion = nn.L2Loss()
+    criterion = nn.MSELoss()
 
     left_optimizer = optim.Adam(left_net.parameters(), lr=lr, weight_decay=0.9)
     right_optimizer = optim.Adam(right_net.parameters(), lr=lr, weight_decay=0.9)
@@ -58,7 +59,7 @@ def main(out_features = 16,
         t = tqdm(dataloader, leave=False, total=len(dataloader))
         for left_data, right_data, label in t:
             t.set_description(f"Anomaly-Detection Training Epoch {epoch + 1}/{epochs}")
-
+                
             left_data = left_data.to(device=device)
             right_data = right_data.to(device=device)
             label = label.to(device=device)
@@ -72,7 +73,7 @@ def main(out_features = 16,
                   / (left_embedding_norm * right_embedding_norm) * temperature
 
             # backward
-            loss = criterion(pred, label)
+            loss = criterion(pred.flatten(), label)
 
             # update
             left_optimizer.zero_grad()
@@ -85,7 +86,7 @@ def main(out_features = 16,
     print("End Training")
     return left_net, right_net
 
-def test(left_net, right_net, threshold: float = -0.2):
+def test(left_net, right_net, threshold: float = -0.2, temperature = 0.8):
 
     print("====================================================")
     print(f"Begin detect outliers on Test under {threshold}")
@@ -102,21 +103,21 @@ def test(left_net, right_net, threshold: float = -0.2):
         for test_data, normal_data, test_label in loop:
             test_data = test_data.to(device=device)
             normal_data = normal_data.to(device=device)
-            test_label = test_label.to(device=device)
 
             test_left_embedding = left_net(test_data)
             test_right_embedding = right_net(normal_data)
             left_embedding_norm = torch.norm(test_left_embedding, dim=1)
             right_embedding_norm = torch.norm(test_right_embedding, dim=1)
             pred = torch.diag(torch.mm(test_left_embedding, test_right_embedding.t())) \
-                / (left_embedding_norm * right_embedding_norm)
+                / (left_embedding_norm * right_embedding_norm) / temperature
             pred_label = torch.where(pred > threshold, 0, 1).tolist()
             pred_labels += pred_label
             test_labels += test_label
     
     print("======================Score=========================")
     print(f"Recall: {recall_score(test_labels, pred_labels, pos_label=1)}")
-    print(f"Precision: {precision_score(test_labels, pred_labels)}")
+    print(f"Precision: {precision_score(test_labels, pred_labels, pos_label=1)}")
+    print(f"Accuracy: {accuracy_score(test_labels, pred_labels)}")
 
 
 if __name__ == "__main__":
@@ -124,12 +125,11 @@ if __name__ == "__main__":
     seed_everything(random_state=42)
     left_net, right_net = main(out_features = 8,
                                batch_size = 128,
-                               lr = 2e-4,
+                               lr = 3e-5,
                                pretrain_epochs=10,
                                epochs=2,
-                               max_pairs=6000,
-                               an_ratio=0.4,
-                               temperature=0.6)
-    test(left_net=left_net, right_net=right_net, threshold=0.3)
-    test(left_net=left_net, right_net=right_net, threshold=-0.1)
-    test(left_net=left_net, right_net=right_net, threshold=0)
+                               max_pairs=3000,
+                               an_ratio=0.7,
+                               temperature=0.8)
+    for threshold in [-0.3, -0.1, 0, 0.1, 0.3, 0.5, 0.7]:
+        test(left_net=left_net, right_net=right_net, threshold=threshold)
