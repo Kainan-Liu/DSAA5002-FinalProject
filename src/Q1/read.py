@@ -152,7 +152,7 @@ class Q1Data(Dataset):
                 batch_df = df.iloc[index, :]
                 left_data = torch.tensor(self.train_data.iloc[batch_df["left_index"], :].to_numpy(), dtype=torch.float32)
                 right_data = torch.tensor(self.train_data.iloc[batch_df["right_index"], :].to_numpy(), dtype=torch.float32)
-                label = batch_df["label"]
+                label = torch.tensor(batch_df["label"], dype=torch.float32)
                 return left_data, right_data, label
             else:
                 normal_data = torch.tensor(self.train_data.iloc[self.normal_index, :].to_numpy(), dtype=torch.float32)
