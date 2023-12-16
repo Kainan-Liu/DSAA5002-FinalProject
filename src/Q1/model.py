@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from typing import Union, Optional
 from read import Q1Data
-from sklearn.metrics import recall_score, accuracy_score
+from sklearn.metrics import recall_score, precision_score
 
 class LinearBlock(nn.Module):
     def __init__(self, in_features, out_features, act: Optional[bool] = True, last: bool = False, *args, **kwargs) -> None:
@@ -98,4 +98,4 @@ class ANNet(nn.Module):
         
         print("======================Score=========================")
         print(f"Recall: {recall_score(test_labels, pred_labels, pos_label=1)}")
-        print(f"Accuracy: {accuracy_score(test_labels, pred_labels)}")
+        print(f"Precision: {precision_score(test_labels, pred_labels)}")
