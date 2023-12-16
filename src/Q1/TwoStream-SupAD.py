@@ -47,7 +47,7 @@ def main(out_features = 16,
 
     dataloader = DataLoader(dataset, shuffle=True, batch_size=batch_size)
 
-    criterion = nn.L1Loss()
+    criterion = nn.CrossEntropyLoss()
 
     left_optimizer = optim.Adam(left_net.parameters(), lr=lr, weight_decay=0.9)
     right_optimizer = optim.Adam(right_net.parameters(), lr=lr, weight_decay=0.9)
