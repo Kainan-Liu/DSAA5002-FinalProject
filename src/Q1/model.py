@@ -51,7 +51,7 @@ class ANNet(nn.Module):
     
     def pretrain(self, lr, batch_size, epochs, max_sample):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        dataset = Q1Data(files_dir="c:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q1/train/", \
+        dataset = Q1Data(files_dir="../../Data/Q1/train/", \
                         align=False, flag=True, max_sample=max_sample, pretrain=True, test=False)
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=2)
         criterion = nn.BCELoss()
@@ -84,7 +84,7 @@ class ANNet(nn.Module):
         print("Test Pretrain model")
         self.model.eval()
         self.classifier.eval()
-        test_data = pd.read_csv("c:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q1/test/test_set.csv")
+        test_data = pd.read_csv("../../Data/Q1/test/test_set.csv")
         X = test_data.iloc[:, 1:-1]
         y = test_data.iloc[:, -1]
         pred_labels = []
