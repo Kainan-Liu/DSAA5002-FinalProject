@@ -31,7 +31,7 @@ def main(out_features = 16,
          pretrain = True):
 
     # initialization
-    dataset = Q1Data(files_dir="c:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q1/train/", \
+    dataset = Q1Data(files_dir="../../Data/Q1/train/", \
                      align=True, max_pairs=max_pairs, test=False, an_ratio=an_ratio)
     input_features = dataset.train_data.shape[1]
 
@@ -89,9 +89,9 @@ def test(left_net, right_net, threshold: float = -0.2):
 
     print("====================================================")
     print(f"Begin detect outliers on Test under {threshold}")
-    test_dataset = Q1Data(test_file="c:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q1/test/test_set.csv", \
+    test_dataset = Q1Data(test_file="../../Data/Q1/test/test_set.csv", \
                           align=True, max_pairs=3000, test=True, flag=False,
-                          files_dir="c:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q1/train/")
+                          files_dir="../../Data/Q1/train/")
     test_dataloader = DataLoader(test_dataset, batch_size=256, shuffle=False)
     left_net.eval()
     right_net.eval()
