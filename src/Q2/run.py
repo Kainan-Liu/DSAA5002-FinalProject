@@ -53,12 +53,12 @@ def main(num_classes, epochs, batch_size, lr):
     print("Begin Testing")
     test_dataset = Q2Dataset(data_dir="../../Data/Q2/train_data/", \
                              train=False)
-    test_datalaoder = DataLoader(test_dataset, batch_size=256, shuffle=False)
+    test_dataloader = DataLoader(test_dataset, batch_size=256, shuffle=False)
     model.eval()
     with torch.no_grad():
         pred_labels = []
         test_labels = []
-        for test_data, test_label in test_datalaoder:
+        for test_data, test_label in test_dataloader:
             test_data = test_data.to(device=device)
 
             output = model(test_data)
