@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+import pandas as pd
 import numpy as np
 import copy
 import random
@@ -9,7 +9,7 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 from read import Q1Data
 from model import ANNet
-from sklearn.metrics import recall_score, precision_score, accuracy_score
+from sklearn.metrics import recall_score, accuracy_score, precision_score
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -32,7 +32,7 @@ def main(out_features = 16,
          pretrain = True):
 
     # initialization
-    dataset = Q1Data(files_dir="../../Data/Q1/train/", \
+    dataset = Q1Data(files_dir="c:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q1/train/", \
                      align=True, max_pairs=max_pairs, test=False, an_ratio=an_ratio)
     input_features = dataset.train_data.shape[1]
 
@@ -48,7 +48,7 @@ def main(out_features = 16,
 
     dataloader = DataLoader(dataset, shuffle=True, batch_size=batch_size)
 
-    criterion = nn.MSELoss()
+    criterion = nn.L1Loss()
 
     left_optimizer = optim.Adam(left_net.parameters(), lr=lr, weight_decay=0.9)
     right_optimizer = optim.Adam(right_net.parameters(), lr=lr, weight_decay=0.9)
@@ -59,21 +59,21 @@ def main(out_features = 16,
         t = tqdm(dataloader, leave=False, total=len(dataloader))
         for left_data, right_data, label in t:
             t.set_description(f"Anomaly-Detection Training Epoch {epoch + 1}/{epochs}")
-                
+
             left_data = left_data.to(device=device)
             right_data = right_data.to(device=device)
             label = label.to(device=device)
 
             # forward
-            left_embedding = left_net(left_data)
-            right_embedding = right_net(right_data) # batch_size * output_features
+            left_embedding = left_net.model(left_data)
+            right_embedding = right_net.model(right_data) # batch_size * output_features
             left_embedding_norm = torch.norm(left_embedding, dim=1)
             right_embedding_norm = torch.norm(right_embedding, dim=1)
             pred = torch.diag(torch.mm(left_embedding, right_embedding.t())) \
                   / (left_embedding_norm * right_embedding_norm) * temperature
 
             # backward
-            loss = criterion(pred.flatten(), label)
+            loss = criterion(pred, label)
 
             # update
             left_optimizer.zero_grad()
@@ -86,33 +86,43 @@ def main(out_features = 16,
     print("End Training")
     return left_net, right_net
 
-def test(left_net, right_net, threshold: float = -0.2, temperature = 0.8):
+def test(left_net, right_net, threshold: float = -0.2):
 
     print("====================================================")
     print(f"Begin detect outliers on Test under {threshold}")
-    test_dataset = Q1Data(test_file="../../Data/Q1/test/test_set.csv", \
-                          align=True, max_pairs=3000, test=True, flag=False,
-                          files_dir="../../Data/Q1/train/")
-    test_dataloader = DataLoader(test_dataset, batch_size=256, shuffle=False)
+    data = pd.read_csv("c:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q1/test/test_set.csv")
+    test_dataset = Q1Data(test_file="c:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q1/test/test_set.csv", \
+                          align=True, max_pairs=len(data), test=True, flag=False,
+                          files_dir="c:/Users/lenovo/Desktop/HKUSTGZ-PG/Course-project/DSAA-5002/Final-Project/Data/Q1/train/")
+    test_dataloader = DataLoader(test_dataset, batch_size=256, shuffle=False, drop_last=False)
+    id = data.iloc[:, 0].tolist()
     left_net.eval()
     right_net.eval()
     with torch.no_grad():
         loop = tqdm(test_dataloader, leave=False, total=len(test_dataloader))
         pred_labels = []
         test_labels = []
-        for test_data, normal_data, test_label in loop:
+        for test_data, abnormal_data, test_label in loop:
             test_data = test_data.to(device=device)
-            normal_data = normal_data.to(device=device)
+            abnormal_data = abnormal_data.to(device=device)
+            test_label = test_label.to(device=device)
 
-            test_left_embedding = left_net(test_data)
-            test_right_embedding = right_net(normal_data)
+            test_left_embedding = left_net.model(test_data)
+            test_right_embedding = right_net.model(abnormal_data)
             left_embedding_norm = torch.norm(test_left_embedding, dim=1)
             right_embedding_norm = torch.norm(test_right_embedding, dim=1)
             pred = torch.diag(torch.mm(test_left_embedding, test_right_embedding.t())) \
-                / (left_embedding_norm * right_embedding_norm) / temperature
-            pred_label = torch.where(pred > threshold, 0, 1).tolist()
+                / (left_embedding_norm * right_embedding_norm)
+            pred_label = torch.where(pred > threshold, 1, 0).tolist()
             pred_labels += pred_label
             test_labels += test_label
+    # df = pd.DataFrame({
+    #     "ID": id,
+    #     "Is_Falling": pred_labels        
+    # })
+    # df.to_csv("./Data/Q1/Q1_output_TwoStream.csv", index=False)
+    # print("==Save Results==")
+    # print("Success!")
     
     print("======================Score=========================")
     print(f"Recall: {recall_score(test_labels, pred_labels, pos_label=1)}")
@@ -125,11 +135,14 @@ if __name__ == "__main__":
     seed_everything(random_state=42)
     left_net, right_net = main(out_features = 8,
                                batch_size = 128,
-                               lr = 3e-5,
-                               pretrain_epochs=10,
-                               epochs=2,
-                               max_pairs=3000,
-                               an_ratio=0.7,
-                               temperature=0.8)
-    for threshold in [-0.3, -0.1, 0, 0.1, 0.3, 0.5, 0.7]:
-        test(left_net=left_net, right_net=right_net, threshold=threshold)
+                               lr = 2e-5,
+                               pretrain_epochs=15,
+                               pretrain=True,
+                               epochs=1,
+                               max_pairs=6000,
+                               an_ratio=0.6,
+                               temperature=0.6)
+    test(left_net=left_net, right_net=right_net, threshold=-0.1)
+    test(left_net=left_net, right_net=right_net, threshold=0.1)
+    test(left_net=left_net, right_net=right_net, threshold=-0.3)
+    test(left_net=left_net, right_net=right_net, threshold=0.5)

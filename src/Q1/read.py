@@ -20,7 +20,7 @@ class Q1Data(Dataset):
                  align: Optional[bool] = None,
                  max_pairs: Optional[int] = None,
                  max_sample: Optional[int] = None,
-                 an_ratio: Optional[float] = 0.6) -> None:
+                 an_ratio: Optional[float] = 0.7) -> None:
         self.files_dir = files_dir
         self.random_state = random_state
         self.train = train
@@ -37,10 +37,10 @@ class Q1Data(Dataset):
                 file_list = []
                 for file in files:
                     file_list.append(pd.read_csv(files_dir + file))
-                df = pd.concat(file_list, axis=0)
+                df = pd.concat(file_list, axis=0, ignore_index=True)
 
                 if df.isna().any().any():
-                    df.dropna(axis=0) # Drop the rows contain Nan
+                    df.dropna(axis=0, inplace=True) # Drop the rows contain Nan
 
                 data = df.iloc[:, :-1]
                 label = df.iloc[:, -1]
@@ -51,10 +51,12 @@ class Q1Data(Dataset):
                     normal_index = np.random.choice(df[df.iloc[:, -1] == 0].index.to_numpy(), \
                                                     size=int((1- an_ratio) * max_sample))
                     anomaly_index = np.random.choice(df[df.iloc[:, -1] == 1].index.to_numpy(), \
-                                                    size=int(an_ratio * max_sample))
+                                                    size=int(an_ratio * max_sample)) # upsample
+                    print(f"ratio {len(anomaly_index)/len(normal_index)}")
                     sample_index = list(np.concatenate((normal_index, anomaly_index)))
-                    data = data.iloc[sample_index, :]
-                    label = label.iloc[sample_index]
+                    data = df.iloc[sample_index, :-1]
+                    label = df.iloc[sample_index, -1]
+                    print(label.value_counts())
 
                 self.train_data, self.valid_data, self.train_label, self.valid_label \
                     = train_test_split(data, label, test_size=0.1, random_state=42)
@@ -81,27 +83,28 @@ class Q1Data(Dataset):
         normal_index = self.train_label[self.train_label == 0].index
         anomaly_index = self.train_label[self.train_label == 1].index
         if max_pairs is None:
-            nn_pair_size = int((1-self.an_ratio) * self.max_pairs)
+            max_pairs = len(self.train_label)
+            aa_pair_size = int((1-self.an_ratio) * self.max_pairs)
             an_pair_size = int(self.an_ratio * self.max_pairs)
-            nn_pair = [list(np.random.choice(normal_index.to_numpy(), size=nn_pair_size)), \
-                        list(np.random.choice(normal_index.to_numpy(), size=nn_pair_size))]
+            aa_pair = [list(np.random.choice(normal_index.to_numpy(), size=aa_pair_size)), \
+                        list(np.random.choice(normal_index.to_numpy(), size=aa_pair_size))]
             an_pair = [list(np.random.choice(anomaly_index.to_numpy(), size=an_pair_size)), \
                         list(np.random.choice(normal_index.to_numpy(), size=an_pair_size))]
         else:
             if max_pairs <= 2000:
                 print("pairs should be greater than 2000, switch to default value 3000")
                 max_pairs = self.max_pairs
-            nn_pair_size = int((1-self.an_ratio) * max_pairs)
+            aa_pair_size = int((1-self.an_ratio) * max_pairs)
             an_pair_size = int(self.an_ratio * max_pairs)
-            nn_pair = [list(np.random.choice(normal_index.to_numpy(), size=nn_pair_size)), \
-                        list(np.random.choice(normal_index.to_numpy(), size=nn_pair_size))]
+            aa_pair = [list(np.random.choice(anomaly_index.to_numpy(), size=aa_pair_size)), \
+                        list(np.random.choice(anomaly_index.to_numpy(), size=aa_pair_size))]
             an_pair = [list(np.random.choice(anomaly_index.to_numpy(), size=an_pair_size)), \
                         list(np.random.choice(normal_index.to_numpy(), size=an_pair_size))]
 
         self.normal_index = normal_index
         self.anomaly_index = anomaly_index
-        pair = [nn_pair[0] + an_pair[0], nn_pair[1] + an_pair[1]]
-        label = [1 for _ in range(len(nn_pair[0]))] + [-1 for _ in range(len(an_pair[0]))]
+        pair = [aa_pair[0] + an_pair[0], aa_pair[1] + an_pair[1]]
+        label = [1 for _ in range(len(aa_pair[0]))] + [-1 for _ in range(len(an_pair[0]))]
         return pair, label
     
     @property
@@ -149,23 +152,22 @@ class Q1Data(Dataset):
                     "label": self.pair_label
                 })
                 df.reset_index()
-                batch_df = df.iloc[index, :]
-                left_data = torch.tensor(self.train_data.iloc[batch_df["left_index"], :].to_numpy(), dtype=torch.float32)
-                right_data = torch.tensor(self.train_data.iloc[batch_df["right_index"], :].to_numpy(), dtype=torch.float32)
-                label = torch.tensor(batch_df["label"], dtype=torch.float32)
+                left_data = torch.tensor(self.train_data.loc[df.iloc[index].left_index].to_numpy(), dtype=torch.float32)
+                right_data = torch.tensor(self.train_data.loc[df.iloc[index].right_index].to_numpy(), dtype=torch.float32)
+                label = df.iloc[index].label
                 return left_data, right_data, label
             else:
-                normal_data = torch.tensor(self.train_data.iloc[self.normal_index, :].to_numpy(), dtype=torch.float32)
+                abnormal_data = torch.tensor(self.train_data.loc[self.anomaly_index].to_numpy(), dtype=torch.float32)
                 if self.test:
                     if isinstance(self.test_data, pd.DataFrame):
                         test_data = self.test_data.iloc[:, 1:-1] # move id column
                         test_label = self.test_data.iloc[:, -1]
                         test_data = torch.tensor(test_data.to_numpy(), dtype=torch.float32)
                         test_label = torch.tensor(test_label.to_numpy())
-                        return test_data[index], normal_data[index], test_label[index]
+                        return test_data[index], abnormal_data[index], test_label[index]
                     else:
                         raise RuntimeError("Please set test data first")
                 else:
                     valid_data = torch.tensor(self.valid_data.to_numpy(), dtype=torch.float32)
                     valid_label = torch.tensor(self.valid_label.to_numpy())
-                    return valid_data[index], normal_data[index], valid_label[index]
+                    return valid_data[index], abnormal_data[index], valid_label[index]
